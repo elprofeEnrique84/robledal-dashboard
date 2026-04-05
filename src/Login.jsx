@@ -164,7 +164,7 @@ export default function Login({ onLogin }) {
         </form>
 
         <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', textAlign: 'center', marginTop: '32px' }}>
-          © 2026 Consultora Grupo DXAS SPA
+          © 2026 Grupo DXAS SPA
         </p>
       </div>
     </div>
