@@ -7,9 +7,26 @@ const COLORS = ['#4a9a4a', '#a8d5a2', '#2d7a2d', '#6db86d', '#1a5c1a']
 export default function Dashboard() {
   const [reservas, setReservas] = useState([])
   const [loading, setLoading] = useState(true)
+  // MEJORA 1: Estado para detectar ancho de pantalla
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
   useEffect(() => {
     fetchReservas()
+
+    // MEJORA 2: Listeners para actualización automática y responsive
+    const handleFocus = () => {
+      console.log("Actualizando dashboard por enfoque...")
+      fetchReservas()
+    }
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('resize', handleResize)
+    }
   }, [])
 
   const fetchReservas = async () => {
@@ -21,14 +38,13 @@ export default function Dashboard() {
     setLoading(false)
   }
 
-  // KPIs
+  // --- TUS CÁLCULOS ORIGINALES (SIN CAMBIOS) ---
   const totalReservas = reservas.length
   const reservasConfirmadas = reservas.filter(r => r.estado === 'CONFIRMADA').length
   const reservasPendientes = reservas.filter(r => r.estado === 'PENDIENTE').length
   const ingresosTotales = reservas.reduce((s, r) => s + (r.total_clp || 0), 0)
   const anticiposPendientes = reservas.filter(r => r.estado === 'PENDIENTE').reduce((s, r) => s + (r.anticipo_clp || 0), 0)
 
-  // Reservas por mes
   const reservasPorMes = reservas.reduce((acc, r) => {
     if (!r.created_at) return acc
     const mes = new Date(r.created_at).toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
@@ -37,7 +53,6 @@ export default function Dashboard() {
   }, {})
   const dataMes = Object.entries(reservasPorMes).map(([mes, cantidad]) => ({ mes, cantidad }))
 
-  // Ingresos por mes
   const ingresosPorMes = reservas.reduce((acc, r) => {
     if (!r.created_at) return acc
     const mes = new Date(r.created_at).toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
@@ -46,7 +61,6 @@ export default function Dashboard() {
   }, {})
   const dataIngresos = Object.entries(ingresosPorMes).map(([mes, total]) => ({ mes, total: Math.round(total / 1000) }))
 
-  // Por cabaña
   const porCabana = reservas.reduce((acc, r) => {
     const cab = r.cabana || 'Sin especificar'
     acc[cab] = (acc[cab] || 0) + 1
@@ -54,7 +68,6 @@ export default function Dashboard() {
   }, {})
   const dataCabana = Object.entries(porCabana).map(([name, value]) => ({ name, value }))
 
-  // Por idioma
   const porIdioma = reservas.reduce((acc, r) => {
     const idioma = r.idioma || 'Español'
     acc[idioma] = (acc[idioma] || 0) + 1
@@ -64,16 +77,18 @@ export default function Dashboard() {
 
   const formatCLP = (n) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n)
 
+  // MEJORA 3: KPICard ajustada para flex-basis
   const KPICard = ({ icon, label, value, sub, color }) => (
     <div style={{
       background: 'rgba(255,255,255,0.03)',
       border: '1px solid rgba(255,255,255,0.07)',
-      borderRadius: '12px', padding: '24px',
-      flex: 1, minWidth: '180px'
+      borderRadius: '12px', padding: isMobile ? '16px' : '24px',
+      flex: '1 1 200px', // Esto hace que las cards se acomoden solas
+      minWidth: '150px'
     }}>
       <div style={{ fontSize: '28px', marginBottom: '12px' }}>{icon}</div>
       <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', letterSpacing: '1px', marginBottom: '6px' }}>{label}</div>
-      <div style={{ color: color || '#a8d5a2', fontSize: '28px', fontWeight: '700', fontFamily: 'monospace' }}>{value}</div>
+      <div style={{ color: color || '#a8d5a2', fontSize: isMobile ? '22px' : '28px', fontWeight: '700', fontFamily: 'monospace' }}>{value}</div>
       {sub && <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', marginTop: '4px' }}>{sub}</div>}
     </div>
   )
@@ -85,7 +100,7 @@ export default function Dashboard() {
   )
 
   return (
-    <div style={{ padding: '32px', color: '#fff', fontFamily: "'Georgia', serif" }}>
+    <div style={{ padding: isMobile ? '16px' : '32px', color: '#fff', fontFamily: "'Georgia', serif" }}>
       <h2 style={{ color: '#a8d5a2', fontSize: '22px', fontWeight: '400', marginBottom: '8px', letterSpacing: '1px' }}>
         Vista General
       </h2>
@@ -93,7 +108,7 @@ export default function Dashboard() {
         Métricas en tiempo real de Cabañas Robledal
       </p>
 
-      {/* KPIs */}
+      {/* KPIs RESPONSIVE */}
       <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '32px' }}>
         <KPICard icon="📋" label="TOTAL RESERVAS" value={totalReservas} />
         <KPICard icon="✅" label="CONFIRMADAS" value={reservasConfirmadas} color="#6db86d" />
@@ -102,71 +117,89 @@ export default function Dashboard() {
         <KPICard icon="🔔" label="ANTICIPOS POR COBRAR" value={formatCLP(anticiposPendientes)} color="#ff9060" />
       </div>
 
-      {/* Charts row 1 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+      {/* TUS GRÁFICAS (CON GRID RESPONSIVE) */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', // 1 columna en móvil, 2 en PC
+        gap: '16px' 
+      }}>
+        
         {/* Reservas por mes */}
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '24px' }}>
-          <h3 style={{ color: '#a8d5a2', fontSize: '14px', fontWeight: '400', letterSpacing: '1px', marginBottom: '20px' }}>
-            RESERVAS POR MES
-          </h3>
+        <div style={chartCardStyle}>
+          <h3 style={chartTitleStyle}>RESERVAS POR MES</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={dataMes}>
               <XAxis dataKey="mes" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
               <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
-              <Tooltip contentStyle={{ background: '#1a3a1a', border: '1px solid #4a9a4a', borderRadius: '8px', color: '#fff' }} />
+              <Tooltip contentStyle={tooltipStyle} />
               <Bar dataKey="cantidad" fill="#4a9a4a" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Ingresos por mes */}
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '24px' }}>
-          <h3 style={{ color: '#a8d5a2', fontSize: '14px', fontWeight: '400', letterSpacing: '1px', marginBottom: '20px' }}>
-            INGRESOS POR MES (miles CLP)
-          </h3>
+        <div style={chartCardStyle}>
+          <h3 style={chartTitleStyle}>INGRESOS POR MES (miles CLP)</h3>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={dataIngresos}>
               <XAxis dataKey="mes" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
               <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
-              <Tooltip contentStyle={{ background: '#1a3a1a', border: '1px solid #4a9a4a', borderRadius: '8px', color: '#fff' }} />
+              <Tooltip contentStyle={tooltipStyle} />
               <Line type="monotone" dataKey="total" stroke="#a8d5a2" strokeWidth={2} dot={{ fill: '#4a9a4a' }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
-      </div>
 
-      {/* Charts row 2 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
         {/* Por cabaña */}
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '24px' }}>
-          <h3 style={{ color: '#a8d5a2', fontSize: '14px', fontWeight: '400', letterSpacing: '1px', marginBottom: '20px' }}>
-            RESERVAS POR CABAÑA
-          </h3>
+        <div style={chartCardStyle}>
+          <h3 style={chartTitleStyle}>RESERVAS POR CABAÑA</h3>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
-              <Pie data={dataCabana} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+              <Pie data={dataCabana} cx="50%" cy="50%" outerRadius={isMobile ? 60 : 80} dataKey="value" label={isMobile ? false : ({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                 {dataCabana.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
-              <Tooltip contentStyle={{ background: '#1a3a1a', border: '1px solid #4a9a4a', borderRadius: '8px', color: '#fff' }} />
+              <Tooltip contentStyle={tooltipStyle} />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
         {/* Por idioma */}
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '24px' }}>
-          <h3 style={{ color: '#a8d5a2', fontSize: '14px', fontWeight: '400', letterSpacing: '1px', marginBottom: '20px' }}>
-            CLIENTES POR IDIOMA
-          </h3>
+        <div style={chartCardStyle}>
+          <h3 style={chartTitleStyle}>CLIENTES POR IDIOMA</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={dataIdioma} layout="vertical">
               <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
-              <YAxis dataKey="name" type="category" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} width={80} />
-              <Tooltip contentStyle={{ background: '#1a3a1a', border: '1px solid #4a9a4a', borderRadius: '8px', color: '#fff' }} />
+              <YAxis dataKey="name" type="category" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} width={isMobile ? 60 : 80} />
+              <Tooltip contentStyle={tooltipStyle} />
               <Bar dataKey="value" fill="#6db86d" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
+
       </div>
     </div>
   )
+}
+
+// Estilos reutilizables para mantener limpia la gráfica
+const chartCardStyle = {
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  borderRadius: '12px',
+  padding: '24px'
+}
+
+const chartTitleStyle = {
+  color: '#a8d5a2',
+  fontSize: '14px',
+  fontWeight: '400',
+  letterSpacing: '1px',
+  marginBottom: '20px'
+}
+
+const tooltipStyle = {
+  background: '#1a3a1a',
+  border: '1px solid #4a9a4a',
+  borderRadius: '8px',
+  color: '#fff'
 }
