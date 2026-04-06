@@ -4,11 +4,13 @@ import Login from './Login'
 import Dashboard from './Dashboard'
 import Reservas from './Reservas'
 import Calendario from './Calendario'
+import Cabanas from './Cabanas' // Importación de la nueva sección
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { id: 'reservas', label: 'Reservas', icon: '📋' },
   { id: 'calendario', label: 'Calendario', icon: '📅' },
+  { id: 'cabanas', label: 'Cabañas', icon: '🏡' }, // Ítem añadido
 ]
 
 export default function App() {
@@ -18,6 +20,7 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false)
 
   useEffect(() => {
+    // Gestión de Sesión
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setLoading(false)
@@ -26,13 +29,14 @@ export default function App() {
       setSession(session)
     })
 
-    // Auto-colapsar en pantallas pequeñas
+    // Lógica Responsive para el Sidebar
     const handleResize = () => {
       if (window.innerWidth < 768) setCollapsed(true)
       else setCollapsed(false)
     }
     handleResize()
     window.addEventListener('resize', handleResize)
+    
     return () => {
       subscription.unsubscribe()
       window.removeEventListener('resize', handleResize)
@@ -63,7 +67,7 @@ export default function App() {
       background: 'linear-gradient(160deg, #0a1a0a 0%, #0d2010 100%)',
       display: 'flex', fontFamily: "'Georgia', serif"
     }}>
-      {/* Sidebar */}
+      {/* Sidebar con todas sus propiedades originales */}
       <div style={{
         width: sidebarW,
         minHeight: '100vh',
@@ -77,7 +81,7 @@ export default function App() {
         zIndex: 10
       }}>
 
-        {/* Logo + toggle */}
+        {/* Logo + Botón de colapso */}
         <div style={{
           padding: collapsed ? '20px 0' : '24px 18px',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
@@ -89,9 +93,9 @@ export default function App() {
           {!collapsed && (
             <div style={{ overflow: 'hidden' }}>
               <div style={{ fontSize: '24px', marginBottom: '6px' }}>🏕️</div>
-              <div style={{ color: '#a8d5a2', fontSize: '12px', letterSpacing: '1.5px', whiteSpace: 'nowrap' }}>CABAÑAS</div>
-              <div style={{ color: '#a8d5a2', fontSize: '12px', letterSpacing: '1.5px', whiteSpace: 'nowrap' }}>ROBLEDAL</div>
-              <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: '9px', letterSpacing: '1px', marginTop: '2px', whiteSpace: 'nowrap' }}>ANALÍTICA</div>
+              <div style={{ color: '#a8d5a2', fontSize: '12px', fontWeight: '700', letterSpacing: '1.5px', whiteSpace: 'nowrap' }}>CABAÑAS</div>
+              <div style={{ color: '#a8d5a2', fontSize: '12px', fontWeight: '700', letterSpacing: '1.5px', whiteSpace: 'nowrap' }}>ROBLEDAL</div>
+              <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: '9px', letterSpacing: '1px', marginTop: '2px', whiteSpace: 'nowrap' }}>ADMINISTRACIÓN</div>
             </div>
           )}
 
@@ -106,9 +110,7 @@ export default function App() {
               cursor: 'pointer',
               width: '28px', height: '28px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '14px',
-              flexShrink: 0,
-              transition: 'all 0.2s'
+              fontSize: '14px', flexShrink: 0, transition: 'all 0.2s'
             }}
             onMouseEnter={e => e.currentTarget.style.color = '#a8d5a2'}
             onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
@@ -117,7 +119,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* Nav items */}
+        {/* Navegación con efectos Hover */}
         <nav style={{ flex: 1, padding: '12px 8px' }}>
           {NAV.map(item => {
             const active = pagina === item.id
@@ -164,7 +166,7 @@ export default function App() {
           })}
         </nav>
 
-        {/* User + logout */}
+        {/* Usuario + Logout con efectos originales */}
         <div style={{
           padding: collapsed ? '12px 8px' : '14px 10px',
           borderTop: '1px solid rgba(255,255,255,0.06)',
@@ -202,9 +204,9 @@ export default function App() {
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main Content Area */}
       <div style={{ flex: 1, overflow: 'auto', transition: 'all 0.28s' }}>
-        {/* Top bar */}
+        {/* Top Bar dinámico */}
         <div style={{
           padding: '14px 28px',
           borderBottom: '1px solid rgba(255,255,255,0.05)',
@@ -224,10 +226,13 @@ export default function App() {
           </div>
         </div>
 
-        {/* Page */}
-        {pagina === 'dashboard' && <Dashboard />}
-        {pagina === 'reservas' && <Reservas />}
-        {pagina === 'calendario' && <Calendario />}
+        {/* Área de Renderizado de Páginas */}
+        <div style={{ padding: '0px' }}>
+          {pagina === 'dashboard' && <Dashboard />}
+          {pagina === 'reservas' && <Reservas />}
+          {pagina === 'calendario' && <Calendario />}
+          {pagina === 'cabanas' && <Cabanas />}
+        </div>
       </div>
     </div>
   )

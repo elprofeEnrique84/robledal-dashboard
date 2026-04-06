@@ -9,13 +9,11 @@ export default function Reservas() {
   const [filtroEstado, setFiltroEstado] = useState('TODOS')
   const [busqueda, setBusqueda] = useState('')
   const [selected, setSelected] = useState(null)
-  // MEJORA: Detección de móvil
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
   useEffect(() => {
     fetchReservas()
 
-    // MEJORA: Listeners para Responsive y Focus (Sincronización gratis)
     const handleFocus = () => fetchReservas()
     const handleResize = () => setIsMobile(window.innerWidth < 768)
 
@@ -29,18 +27,35 @@ export default function Reservas() {
   }, [])
 
   const fetchReservas = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('reservas')
       .select('*')
       .order('created_at', { ascending: false })
+    
+    if (error) console.error("Error cargando reservas:", error.message)
     setReservas(data || [])
     setLoading(false)
   }
 
-  const actualizarEstado = async (id, estado) => {
-    await supabase.from('reservas').update({ estado }).eq('id', id)
-    fetchReservas()
-    setSelected(null)
+  // MEJORA: Función robusta para guardar en DB
+  const actualizarEstado = async (id, nuevoEstado) => {
+    try {
+      const { error } = await supabase
+        .from('reservas')
+        .update({ estado: nuevoEstado })
+        .eq('id', id)
+
+      if (error) throw error
+
+      // Actualización optimista de la UI
+      setReservas(prev => prev.map(r => r.id === id ? { ...r, estado: nuevoEstado } : r))
+      setSelected(null)
+      
+      console.log(`Estado actualizado: ${nuevoEstado}`)
+    } catch (error) {
+      console.error("Error al actualizar:", error.message)
+      alert("No se pudo actualizar el estado en la base de datos.")
+    }
   }
 
   const filtradas = reservas.filter(r => {
@@ -70,10 +85,10 @@ export default function Reservas() {
         {filtradas.length} reservas encontradas • Cabañas Robledal
       </p>
 
-      {/* Filtros RESPONSIVE */}
+      {/* Filtros */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
         <input
-          placeholder="Buscar..."
+          placeholder="Buscar cliente, email o teléfono..."
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
           style={{
@@ -100,27 +115,25 @@ export default function Reservas() {
         </div>
       </div>
 
-      {/* Tabla con SCROLL HORIZONTAL (Mejora clave) */}
+      {/* Tabla con scroll horizontal */}
       <div style={{ 
         background: 'rgba(255,255,255,0.03)', 
         border: '1px solid rgba(255,255,255,0.07)', 
         borderRadius: '12px', 
-        overflowX: 'auto', // Permite scroll lateral en móvil
+        overflowX: 'auto',
         WebkitOverflowScrolling: 'touch'
       }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-              {['Cliente', 'Teléfono', 'Llegada', 'Salida', 'Noches', 'Cabaña', 'Total', 'Anticipo', 'Estado', ''].map(h => (
+              {['Cliente', 'Teléfono', 'Llegada', 'Salida', 'Cabaña', 'Total', 'Anticipo', 'Estado', ''].map(h => (
                 <th key={h} style={{ padding: '14px 16px', textAlign: 'left', color: 'rgba(255,255,255,0.4)', fontSize: '11px', letterSpacing: '1px', fontWeight: '400' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>Cargando...</td></tr>
-            ) : filtradas.length === 0 ? (
-              <tr><td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>No hay reservas</td></tr>
+              <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>Cargando...</td></tr>
             ) : filtradas.map((r, i) => (
               <tr key={r.id} style={{
                 borderBottom: '1px solid rgba(255,255,255,0.04)',
@@ -133,7 +146,6 @@ export default function Reservas() {
                 <td style={{ padding: '14px 16px', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>{r.telefono?.replace('@s.whatsapp.net', '') || '-'}</td>
                 <td style={{ padding: '14px 16px', fontSize: '13px' }}>{formatFecha(r.fecha_llegada)}</td>
                 <td style={{ padding: '14px 16px', fontSize: '13px' }}>{formatFecha(r.fecha_salida)}</td>
-                <td style={{ padding: '14px 16px', fontSize: '13px', textAlign: 'center' }}>{r.noches || '-'}</td>
                 <td style={{ padding: '14px 16px', fontSize: '13px' }}>{r.cabana || '-'}</td>
                 <td style={{ padding: '14px 16px', fontSize: '13px', color: '#a8d5a2' }}>{formatCLP(r.total_clp)}</td>
                 <td style={{ padding: '14px 16px', fontSize: '13px', color: '#f0c060' }}>{formatCLP(r.anticipo_clp)}</td>
@@ -163,7 +175,7 @@ export default function Reservas() {
         </table>
       </div>
 
-      {/* Modal Detalle - Ajustado para móvil */}
+      {/* Modal Detalle */}
       {selected && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
@@ -175,29 +187,43 @@ export default function Reservas() {
             borderRadius: '16px', padding: isMobile ? '24px' : '36px', 
             maxWidth: '480px', width: '100%', maxHeight: '90vh', overflowY: 'auto'
           }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ color: '#a8d5a2', marginBottom: '20px', fontWeight: '400' }}>DETALLE</h3>
+            <h3 style={{ color: '#a8d5a2', marginBottom: '20px', fontWeight: '400', letterSpacing: '1px' }}>DETALLE DE RESERVA</h3>
             {[
               ['Cliente', selected.nombre],
+              ['Email', selected.email],
               ['Teléfono', selected.telefono?.replace('@s.whatsapp.net', '')],
               ['Llegada', formatFecha(selected.fecha_llegada)],
               ['Salida', formatFecha(selected.fecha_salida)],
               ['Cabaña', selected.cabana],
               ['Total', formatCLP(selected.total_clp)],
               ['Anticipo', formatCLP(selected.anticipo_clp)],
-              ['Estado', selected.estado],
+              ['Estado Actual', selected.estado],
             ].map(([k, v]) => (
               <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>{k}</span>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', textTransform: 'uppercase' }}>{k}</span>
                 <span style={{ color: '#fff', fontSize: '13px' }}>{v || '-'}</span>
               </div>
             ))}
-            <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-              <button onClick={() => actualizarEstado(selected.id, 'CONFIRMADA')}
-                style={{ flex: 1, padding: '12px', background: '#2d7a2d', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer' }}>
-                Confirmar
+            
+            <div style={{ display: 'flex', gap: '10px', marginTop: '30px' }}>
+              <button 
+                disabled={selected.estado === 'CONFIRMADA'}
+                onClick={() => actualizarEstado(selected.id, 'CONFIRMADA')}
+                style={{ 
+                  flex: 1, padding: '14px', background: '#2d7a2d', border: 'none', 
+                  borderRadius: '8px', color: '#fff', cursor: 'pointer', fontWeight: '600',
+                  opacity: selected.estado === 'CONFIRMADA' ? 0.5 : 1
+                }}>
+                Confirmar Pago
               </button>
-              <button onClick={() => actualizarEstado(selected.id, 'CANCELADA')}
-                style={{ flex: 1, padding: '12px', background: 'rgba(200,50,50,0.2)', border: '1px solid #ff6060', borderRadius: '8px', color: '#ff6060', cursor: 'pointer' }}>
+              <button 
+                disabled={selected.estado === 'CANCELADA'}
+                onClick={() => actualizarEstado(selected.id, 'CANCELADA')}
+                style={{ 
+                  flex: 1, padding: '14px', background: 'rgba(200,50,50,0.1)', border: '1px solid #ff6060', 
+                  borderRadius: '8px', color: '#ff6060', cursor: 'pointer', fontWeight: '600',
+                  opacity: selected.estado === 'CANCELADA' ? 0.5 : 1
+                }}>
                 Cancelar
               </button>
             </div>
